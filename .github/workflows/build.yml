@@ -30,6 +30,22 @@ jobs:
             DEVELOPMENT_TEAM="" \
             build
 
+      - name: Re-sign app for local unsigned use
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find "$PWD/DerivedData" -path "*/Build/Products/Release/Mac Mouse Fix.app" -print -quit)"
+          if [ -z "$APP_PATH" ]; then
+            echo "Could not find built Mac Mouse Fix.app"
+            find "$PWD/DerivedData" -maxdepth 6 -name "*.app" -print
+            exit 1
+          fi
+          codesign --force --sign - "$APP_PATH/Contents/Frameworks/ZipArchive.framework/Versions/A"
+          codesign --force --sign - "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/A"
+          codesign --force --sign - --entitlements Helper/SupportFiles/Helper.entitlements "$APP_PATH/Contents/Library/LoginItems/Mac Mouse Fix Helper.app"
+          codesign --force --sign - --entitlements Accomplice/Accomplice.entitlements "$APP_PATH/Contents/Library/LaunchServices/Mac Mouse Fix Accomplice"
+          codesign --force --sign - --entitlements App/SupportFiles/App.entitlements "$APP_PATH"
+          codesign --verify --deep --strict --verbose=4 "$APP_PATH"
+
       - name: Package app
         run: |
           set -euo pipefail
