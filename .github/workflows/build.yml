@@ -1,0 +1,48 @@
+name: Build Mac Mouse Fix
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - tilt-wheel-buttons-v2
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+
+      - name: Build app
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project "Mouse Fix.xcodeproj" \
+            -scheme "App - Release" \
+            -configuration Release \
+            -derivedDataPath "$PWD/DerivedData" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="-" \
+            DEVELOPMENT_TEAM="" \
+            build
+
+      - name: Package app
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find "$PWD/DerivedData" -path "*/Build/Products/Release/Mac Mouse Fix.app" -print -quit)"
+          if [ -z "$APP_PATH" ]; then
+            echo "Could not find built Mac Mouse Fix.app"
+            find "$PWD/DerivedData" -maxdepth 6 -name "*.app" -print
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "Mac Mouse Fix.app.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mac Mouse Fix
+          path: Mac Mouse Fix.app.zip
