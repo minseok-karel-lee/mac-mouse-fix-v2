@@ -47,6 +47,7 @@ static CVDisplayLinkRef _displayLink;
 // any phase
 static MFDisplayLinkPhase _displayLinkPhase;
 static int _pxToScrollThisFrame;
+static BOOL _inputIsHorizontal;
 //static int _previousPhase; // which phase was active the last time that displayLinkCallback was called. Used to compute artificial scroll phases
 static CGDirectDisplayID *_displaysUnderMousePointer;
 // linear phase
@@ -76,6 +77,7 @@ static void createDisplayLink() {
 + (void)resetDynamicGlobals {
     _displayLinkPhase                   =   kMFPhaseStart; // kMFPhaseNone;
     _pxToScrollThisFrame                =   0;
+    _inputIsHorizontal                  =   NO;
     _pxScrollBuffer                     =   0;
     _msLeftForScroll                    =   0;
     _pxPerMsVelocity                    =   0;
@@ -128,7 +130,9 @@ static BOOL _hasStarted;
 
 + (void)handleInput:(CGEventRef)event info:(NSDictionary * _Nullable)info {
     
-    long long scrollDeltaAxis1 = CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis1);
+    _inputIsHorizontal = [info[@"isHorizontalScroll"] boolValue];
+    CGEventField inputDeltaField = _inputIsHorizontal ? kCGScrollWheelEventDeltaAxis2 : kCGScrollWheelEventDeltaAxis1;
+    long long scrollDelta = CGEventGetIntegerValueField(event, inputDeltaField);
 
     // Update global vars
     
@@ -157,12 +161,12 @@ static BOOL _hasStarted;
     // Apply scroll wheel input to _pxScrollBuffer
     _msLeftForScroll = _msPerStep;
 //    _msLeftForScroll = 1 / (_pxPerMSBaseSpeed / _pxStepSize);
-    if (scrollDeltaAxis1 > 0) {
+    if (scrollDelta > 0) {
         _pxScrollBuffer += pxStepSizeWithFastScrollApplied * ScrollControl.scrollDirection;
-    } else if (scrollDeltaAxis1 < 0) {
+    } else if (scrollDelta < 0) {
         _pxScrollBuffer -= pxStepSizeWithFastScrollApplied * ScrollControl.scrollDirection;
     } else {
-        NSLog(@"scrollDeltaAxis1 is 0. This shouldn't happen.");
+        NSLog(@"scrollDelta is 0. This shouldn't happen.");
     }
     
     // Apply acceleration to _pxScrollBuffer
@@ -305,7 +309,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeSt
         
         // Set scrollDelta
         
-        if (ScrollModifiers.horizontalScrolling == FALSE) {
+        if (ScrollModifiers.horizontalScrolling == FALSE && !_inputIsHorizontal) {
             CGEventSetIntegerValueField(scrollEvent, kCGScrollWheelEventDeltaAxis1, _pxToScrollThisFrame / 8);
             CGEventSetIntegerValueField(scrollEvent, kCGScrollWheelEventPointDeltaAxis1, _pxToScrollThisFrame);
         } else {

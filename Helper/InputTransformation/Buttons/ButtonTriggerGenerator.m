@@ -94,6 +94,7 @@
         ButtonState instance
  */
 static NSMutableDictionary *_state;
+static MFEventPassThroughEvaluation parseInputWithButtonAndDeviceID(NSNumber *btn, MFButtonInputType triggerType, NSNumber *devID, Device *device);
 
 #pragma mark - Load
 
@@ -104,6 +105,14 @@ static NSMutableDictionary *_state;
 #pragma mark - Input parsing
 
 + (MFEventPassThroughEvaluation)parseInputWithButton:(NSNumber *)btn triggerType:(MFButtonInputType)triggerType inputDevice:(Device *)device {
+    return parseInputWithButtonAndDeviceID(btn, triggerType, device.uniqueID, device);
+}
+
++ (MFEventPassThroughEvaluation)parseInputWithButton:(NSNumber *)btn triggerType:(MFButtonInputType)triggerType syntheticDeviceID:(NSNumber *)devID {
+    return parseInputWithButtonAndDeviceID(btn, triggerType, devID, nil);
+}
+
+static MFEventPassThroughEvaluation parseInputWithButtonAndDeviceID(NSNumber *btn, MFButtonInputType triggerType, NSNumber *devID, Device *device) {
     
 #if DEBUG
     NSLog(@"PARSING BUTTON INPUT - btn: %@, trigger %@", btn, @(triggerType));
@@ -113,7 +122,6 @@ static NSMutableDictionary *_state;
     MFEventPassThroughEvaluation passThroughEval;
     
     // Gather info from params
-    NSNumber *devID = device.uniqueID;
     ButtonState *bs = _state[devID][btn];
     
     // If no entry exists in _state for the incoming device and button, create one
@@ -142,13 +150,13 @@ static NSMutableDictionary *_state;
         [bs.holdTimer invalidate]; // Probs unnecessary cause it gets killed by mouse up anyways
         [bs.levelTimer invalidate];
         bs.holdTimer = [NSTimer scheduledTimerWithTimeInterval:0.25
-                                                        target:self
+                                                        target:ButtonTriggerGenerator.class
                                                       selector:@selector(holdTimerCallback:)
                                                       userInfo:timerInfo
                                                        repeats:NO];
         bs.levelTimer = [NSTimer scheduledTimerWithTimeInterval:0.25 //NSEvent.doubleClickInterval // The possible doubleClickIntervall
                          // values (configurable in System Preferences) are either too long or too short. I prefer 0.25
-                                                         target:self
+                                                         target:ButtonTriggerGenerator.class
                                                        selector:@selector(levelTimerCallback:)
                                                        userInfo:timerInfo
                                                         repeats:NO];

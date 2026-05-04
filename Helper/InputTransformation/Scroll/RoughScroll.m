@@ -28,13 +28,16 @@
     
     // Process event
     
+    BOOL inputIsHorizontal = [info[@"isHorizontalScroll"] boolValue];
+
     if (ScrollControl.scrollDirection == -1) { // TODO: Use kMFInvertedScrollDirection instead of -1. Implement same change where ever ScrollControl.scrollDirection is used.
         event = [ScrollUtility invertScrollEvent:event direction:ScrollControl.scrollDirection];
     }
     if (ScrollModifiers.magnificationScrolling) {
-        [ScrollModifiers handleMagnificationScrollWithAmount:CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis1)/50.0];
+        CGEventField inputDeltaField = inputIsHorizontal ? kCGScrollWheelEventDeltaAxis2 : kCGScrollWheelEventDeltaAxis1;
+        [ScrollModifiers handleMagnificationScrollWithAmount:CGEventGetIntegerValueField(event, inputDeltaField)/50.0];
     } else {
-        if (ScrollModifiers.horizontalScrolling) {
+        if (ScrollModifiers.horizontalScrolling && !inputIsHorizontal) {
             [ScrollUtility makeScrollEventHorizontal:event];
         }
         CGEventPost(kCGSessionEventTap, event);

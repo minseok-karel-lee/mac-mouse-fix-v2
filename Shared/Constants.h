@@ -268,6 +268,8 @@ typedef enum {
     kMFMouseButtonNumberLeft = 1,
     kMFMouseButtonNumberRight = 2,
     kMFMouseButtonNumberMiddle = 3,
+    kMFMouseButtonNumberTiltLeft = 6,
+    kMFMouseButtonNumberTiltRight = 7,
 } MFMouseButtonNumber;
 
 #define kMFMaxButtonNumber 32

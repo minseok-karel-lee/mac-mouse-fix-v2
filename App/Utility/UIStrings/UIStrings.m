@@ -35,6 +35,8 @@
         @1: @"Primary Button",
         @2: @"Secondary Button",
         @3: @"Middle Button",
+        @6: @"Tilt Wheel Left",
+        @7: @"Tilt Wheel Right",
     };
     NSString *buttonStr = buttonNumberToUIString[@(buttonNumber)];
     if (!buttonStr) {
@@ -48,6 +50,8 @@
         @1: @"the Primary Mouse Button (also called the Left Mouse Button or Mouse Button 1)",
         @2: @"the Secondary Mouse Button (also called the Right Mouse Button or Mouse Button 2)",
         @3: @"the Middle Mouse Button (also called the Scroll Wheel Button or Mouse Button 3)",
+        @6: @"tilting the Scroll Wheel to the left",
+        @7: @"tilting the Scroll Wheel to the right",
     };
     NSString *buttonStr = buttonNumberToUIString[@(buttonNumber)];
     if (!buttonStr) {

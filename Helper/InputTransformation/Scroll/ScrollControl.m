@@ -16,12 +16,14 @@
 #import "ConfigFileInterface_Helper.h"
 #import "ScrollUtility.h"
 #import "Utility_Helper.h"
+#import "ButtonTriggerGenerator.h"
 
 @implementation ScrollControl
 
 #pragma mark - Private variables
 
 static CFMachPortRef _eventTap       =   nil;
+static NSNumber *_tiltWheelDeviceID;
 
 #pragma mark - Public variables
 
@@ -185,6 +187,25 @@ static int _scrollDirection;
 
 #pragma mark - Private functions
 
+static MFEventPassThroughEvaluation handleHorizontalScrollAsTiltWheelButton(int64_t scrollDelta) {
+    if (_tiltWheelDeviceID == nil) {
+        _tiltWheelDeviceID = @(-1);
+    }
+
+    MFMouseButtonNumber button = scrollDelta < 0 ? kMFMouseButtonNumberTiltLeft : kMFMouseButtonNumberTiltRight;
+    MFEventPassThroughEvaluation downEval = [ButtonTriggerGenerator parseInputWithButton:@(button)
+                                                                              triggerType:kMFButtonInputTypeButtonDown
+                                                                        syntheticDeviceID:_tiltWheelDeviceID];
+    MFEventPassThroughEvaluation upEval = [ButtonTriggerGenerator parseInputWithButton:@(button)
+                                                                            triggerType:kMFButtonInputTypeButtonUp
+                                                                      syntheticDeviceID:_tiltWheelDeviceID];
+
+    if (downEval == kMFEventPassThroughRefusal || upEval == kMFEventPassThroughRefusal) {
+        return kMFEventPassThroughRefusal;
+    }
+    return kMFEventPassThroughApproval;
+}
+
 static CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *userInfo) {
     
     // Return non-scrollwheel events unaltered
@@ -193,18 +214,23 @@ static CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEv
     int64_t scrollDeltaAxis1 = CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis1);
     int64_t scrollDeltaAxis2 = CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis2);
     int64_t drawingTabletId = CGEventGetIntegerValueField(event, kCGTabletEventDeviceID);
+    BOOL isHorizontalScroll = scrollDeltaAxis1 == 0 && scrollDeltaAxis2 != 0;
+    BOOL isVerticalScroll = scrollDeltaAxis1 != 0 && scrollDeltaAxis2 == 0;
     if (isPixelBased != 0
-        || scrollDeltaAxis1 == 0
-        || scrollDeltaAxis2 != 0 // Ignore horizontal scroll-events
+        || (!isVerticalScroll && !isHorizontalScroll)
         || scrollPhase != 0 // Adding scrollphase here is untested
         || drawingTabletId != 0) { /// Untested as well
         return event;
     }
     
     // Check if scrolling direction changed
-    [ScrollUtility updateScrollDirectionDidChange:scrollDeltaAxis1];
+    int64_t scrollDelta = isHorizontalScroll ? scrollDeltaAxis2 : scrollDeltaAxis1;
+    [ScrollUtility updateScrollDirectionDidChange:scrollDelta];
     if (ScrollUtility.scrollDirectionDidChange) {
         [ScrollUtility resetConsecutiveTicksAndSwipes];
+    }
+    if (isHorizontalScroll && handleHorizontalScrollAsTiltWheelButton(scrollDelta) == kMFEventPassThroughRefusal) {
+        return nil;
     }
     
     // Create a copy, because the original event will become invalid and unusable in the new thread.
@@ -254,14 +280,16 @@ static CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEv
     
         // Process event
         
+        NSDictionary *scrollInfo = @{ @"isHorizontalScroll" : @(isHorizontalScroll) };
+
         if (_isSmoothEnabled) {
             [SmoothScroll start];   // Not sure if useful
             [RoughScroll stop];     // Not sure if useful
-            [SmoothScroll handleInput:eventCopy info:NULL];
+            [SmoothScroll handleInput:eventCopy info:scrollInfo];
         } else {
             [SmoothScroll stop];
             [RoughScroll start];
-            [RoughScroll handleInput:eventCopy info:NULL];
+            [RoughScroll handleInput:eventCopy info:scrollInfo];
         }
         CFRelease(eventCopy);
     });
